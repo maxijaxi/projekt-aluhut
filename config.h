@@ -2,10 +2,10 @@
 
 #include "types.h"
 
-constexpr unsigned baud = 115200;
+constexpr unsigned BAUD = 115200;
 
 constexpr PinConfig pins[] = {
-    {A0, PinMode::Input},
-    {A1, PinMode::Input},
+    {0xA0, PinMode::Input},
+    {0xA1, PinMode::Input},
     {2, PinMode::Input}
 };
