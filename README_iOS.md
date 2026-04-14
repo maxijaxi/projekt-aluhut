@@ -32,7 +32,7 @@ AluhutChat/
 ├── Bluetooth/
 │   └── BLEManager.swift      # CoreBluetooth – Scan, Connect, Send, Receive
 └── Views/
-    ├── ContentView.swift      # Root-View (wechselt zwischen Geräteliste und Chat)
+    ├── AluhutChatRootView.swift # Root-View (wechselt zwischen Geräteliste und Chat)
     ├── DeviceListView.swift   # BLE-Scanner & Geräteauswahl
     └── ChatView.swift         # Chat-UI mit Nachrichtenblasen
 ```
@@ -57,10 +57,11 @@ AluhutChat/
    - Bundle Identifier: z. B. `com.deinname.aluhutchat`
    - Zielordner wählen (kann innerhalb dieses Repos sein)
 
-2. **Dateien ersetzen / hinzufügen**
-   - Die von Xcode erstellte `ContentView.swift` und `<Projektname>App.swift` **löschen**.
+2. **Dateien hinzufügen (konfliktfrei)**
    - Alle Swift-Dateien aus `AluhutChat/` per Drag & Drop in den Xcode-Navigator ziehen  
      (Häkchen bei „Copy items if needed" setzen, Gruppe `AluhutChat` wählen).
+   - In deiner bestehenden `<Projektname>App.swift` als Root-View `AluhutChatRootView()` verwenden.
+   - Falls du stattdessen den kompletten App-Entry aus diesem Repo nutzen willst: `<Projektname>App.swift` entfernen und `AluhutChatApp.swift` im Target behalten.
 
 3. **Info.plist – Bluetooth-Berechtigungen**  
    Folgende Schlüssel in `Info.plist` eintragen (Xcode: Projekt → Target → Info → Custom iOS Target Properties):

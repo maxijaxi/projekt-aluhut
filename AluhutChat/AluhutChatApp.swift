@@ -4,7 +4,7 @@ import SwiftUI
 struct AluhutChatApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            AluhutChatRootView()
         }
     }
 }

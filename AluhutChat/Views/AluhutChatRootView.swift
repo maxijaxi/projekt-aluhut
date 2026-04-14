@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct ContentView: View {
+struct AluhutChatRootView: View {
     @StateObject private var bleManager = BLEManager()
 
     var body: some View {
