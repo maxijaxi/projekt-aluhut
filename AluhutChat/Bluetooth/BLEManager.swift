@@ -25,7 +25,6 @@ enum BLEState {
 
 // MARK: - BLEManager
 
-@MainActor
 final class BLEManager: NSObject, ObservableObject {
 
     @Published var state: BLEState = .idle
@@ -46,8 +45,7 @@ final class BLEManager: NSObject, ObservableObject {
 
     override init() {
         super.init()
-        // Using DispatchQueue.main keeps all CB callbacks on the main thread,
-        // which is safe because BLEManager is @MainActor.
+        // Using DispatchQueue.main keeps all CoreBluetooth callbacks on the main thread.
         central = CBCentralManager(delegate: self, queue: .main)
     }
 
@@ -101,60 +99,50 @@ final class BLEManager: NSObject, ObservableObject {
 
 extension BLEManager: CBCentralManagerDelegate {
 
-    nonisolated func centralManagerDidUpdateState(_ central: CBCentralManager) {
-        Task { @MainActor in
-            isBluetoothAvailable = central.state == .poweredOn
-        }
+    func centralManagerDidUpdateState(_ central: CBCentralManager) {
+        isBluetoothAvailable = central.state == .poweredOn
     }
 
-    nonisolated func centralManager(_ central: CBCentralManager,
-                                    didDiscover peripheral: CBPeripheral,
-                                    advertisementData: [String: Any],
-                                    rssi RSSI: NSNumber) {
+    func centralManager(_ central: CBCentralManager,
+                        didDiscover peripheral: CBPeripheral,
+                        advertisementData: [String: Any],
+                        rssi RSSI: NSNumber) {
         let name = peripheral.name
             ?? advertisementData[CBAdvertisementDataLocalNameKey] as? String
             ?? "HM-10"
         let device = BLEDevice(id: peripheral.identifier, name: name,
                                peripheral: peripheral, rssi: RSSI.intValue)
-        Task { @MainActor in
-            if !discoveredDevices.contains(where: { $0.id == device.id }) {
-                discoveredDevices.append(device)
-            }
+        if !discoveredDevices.contains(where: { $0.id == device.id }) {
+            discoveredDevices.append(device)
         }
     }
 
-    nonisolated func centralManager(_ central: CBCentralManager,
-                                    didConnect peripheral: CBPeripheral) {
-        Task { @MainActor in
-            connectedPeripheral = peripheral
-            peripheral.delegate = self
-            peripheral.discoverServices([hm10ServiceUUID])
-            if let device = discoveredDevices.first(where: { $0.id == peripheral.identifier }) {
-                connectedDevice = device
-            }
-            state = .connected
+    func centralManager(_ central: CBCentralManager,
+                        didConnect peripheral: CBPeripheral) {
+        connectedPeripheral = peripheral
+        peripheral.delegate = self
+        peripheral.discoverServices([hm10ServiceUUID])
+        if let device = discoveredDevices.first(where: { $0.id == peripheral.identifier }) {
+            connectedDevice = device
         }
+        state = .connected
     }
 
-    nonisolated func centralManager(_ central: CBCentralManager,
-                                    didFailToConnect peripheral: CBPeripheral,
-                                    error: Error?) {
-        Task { @MainActor in
-            state = .disconnected
-            connectedDevice = nil
-        }
+    func centralManager(_ central: CBCentralManager,
+                        didFailToConnect peripheral: CBPeripheral,
+                        error: Error?) {
+        state = .disconnected
+        connectedDevice = nil
     }
 
-    nonisolated func centralManager(_ central: CBCentralManager,
-                                    didDisconnectPeripheral peripheral: CBPeripheral,
-                                    error: Error?) {
-        Task { @MainActor in
-            state = .disconnected
-            connectedDevice = nil
-            connectedPeripheral = nil
-            txChar = nil
-            receiveBuffer.removeAll()
-        }
+    func centralManager(_ central: CBCentralManager,
+                        didDisconnectPeripheral peripheral: CBPeripheral,
+                        error: Error?) {
+        state = .disconnected
+        connectedDevice = nil
+        connectedPeripheral = nil
+        txChar = nil
+        receiveBuffer.removeAll()
     }
 }
 
@@ -162,46 +150,42 @@ extension BLEManager: CBCentralManagerDelegate {
 
 extension BLEManager: CBPeripheralDelegate {
 
-    nonisolated func peripheral(_ peripheral: CBPeripheral,
-                                didDiscoverServices error: Error?) {
+    func peripheral(_ peripheral: CBPeripheral,
+                    didDiscoverServices error: Error?) {
         guard let services = peripheral.services else { return }
         for service in services {
             peripheral.discoverCharacteristics([hm10CharUUID], for: service)
         }
     }
 
-    nonisolated func peripheral(_ peripheral: CBPeripheral,
-                                didDiscoverCharacteristicsFor service: CBService,
-                                error: Error?) {
+    func peripheral(_ peripheral: CBPeripheral,
+                    didDiscoverCharacteristicsFor service: CBService,
+                    error: Error?) {
         guard let characteristics = service.characteristics else { return }
         for char in characteristics where char.uuid == hm10CharUUID {
             peripheral.setNotifyValue(true, for: char)
-            Task { @MainActor in
-                txChar = char
-            }
+            txChar = char
         }
     }
 
-    nonisolated func peripheral(_ peripheral: CBPeripheral,
-                                didUpdateValueFor characteristic: CBCharacteristic,
-                                error: Error?) {
+    func peripheral(_ peripheral: CBPeripheral,
+                    didUpdateValueFor characteristic: CBCharacteristic,
+                    error: Error?) {
         guard let data = characteristic.value else { return }
         let bytes = [UInt8](data)
-        Task { @MainActor in
-            receiveBuffer.append(contentsOf: bytes)
-            // Split buffer on newlines in a single pass to avoid repeated O(n) scans
-            let newline = UInt8(ascii: "\n")
-            var start = 0
-            for i in 0..<receiveBuffer.count where receiveBuffer[i] == newline {
-                let packetBytes = Array(receiveBuffer[start...i])
-                start = i + 1
-                if let message = Crypto.parsePacket(packetBytes) {
-                    onMessageReceived?(message)
-                }
+        receiveBuffer.append(contentsOf: bytes)
+        // Split buffer on newlines in a single pass to avoid repeated O(n) scans
+        let newline = UInt8(ascii: "\n")
+        var start = 0
+        for i in 0..<receiveBuffer.count where receiveBuffer[i] == newline {
+            let packetBytes = Array(receiveBuffer[start...i])
+            start = i + 1
+            if let message = Crypto.parsePacket(packetBytes) {
+                onMessageReceived?(message)
             }
-            if start > 0, start <= receiveBuffer.count {
-                receiveBuffer.removeFirst(start)
-            }
+        }
+        if start > 0, start <= receiveBuffer.count {
+            receiveBuffer.removeFirst(start)
         }
     }
 }

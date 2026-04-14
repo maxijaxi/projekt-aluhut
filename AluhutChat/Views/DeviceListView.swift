@@ -8,7 +8,7 @@ struct DeviceListView: View {
             Group {
                 if !bleManager.isBluetoothAvailable {
                     placeholder(
-                        icon: "bluetooth",
+                        icon: "antenna.radiowaves.left.and.right",
                         title: "Bluetooth nicht verfügbar",
                         message: "Bitte aktiviere Bluetooth in den Einstellungen."
                     )
