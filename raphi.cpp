@@ -189,16 +189,15 @@ void checkBLEReceive() {
             if (decrypted[0] != '\0' && receivedChecksum == calculatedChecksum) {
               char oldInput[MAX_MSG_SIZE + 1];
               int oldInputLen = inputLen;
-              strncpy(oldInput, inputBuffer, MAX_MSG_SIZE);
-              oldInput[MAX_MSG_SIZE] = '\0';
+              memcpy(oldInput, inputBuffer, MAX_MSG_SIZE + 1);
 
-              strncpy(inputBuffer, decrypted, MAX_MSG_SIZE);
-              inputBuffer[MAX_MSG_SIZE] = '\0';
-              inputLen = strlen(inputBuffer);
+              size_t decryptedLen = strnlen(decrypted, MAX_MSG_SIZE);
+              memcpy(inputBuffer, decrypted, decryptedLen);
+              inputBuffer[decryptedLen] = '\0';
+              inputLen = static_cast<int>(decryptedLen);
               saveMessageToInbox();
 
-              strncpy(inputBuffer, oldInput, MAX_MSG_SIZE);
-              inputBuffer[MAX_MSG_SIZE] = '\0';
+              memcpy(inputBuffer, oldInput, MAX_MSG_SIZE + 1);
               inputLen = oldInputLen;
             }
           }
