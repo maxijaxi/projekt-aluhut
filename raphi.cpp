@@ -142,7 +142,7 @@ void checkBLEReceive() {
 
   while (HM10_SERIAL.available()) {
     int readByte = HM10_SERIAL.read();
-    if (readByte < 0) {
+    if (readByte == -1) {
       break;
     }
     char c = static_cast<char>(readByte);
@@ -168,7 +168,9 @@ void checkBLEReceive() {
     if (etxPtr != nullptr && etxPtr != recvBuf) {
       *etxPtr = '\0';
       char* checksumStr = etxPtr + 1;
-      while (*checksumStr != '\0' && (*checksumStr == '\r' || *checksumStr == '\n')) checksumStr++;
+      while (*checksumStr != '\0' && (*checksumStr == '\r' || *checksumStr == '\n')) {
+        checksumStr++;
+      }
 
       if (*checksumStr != '\0') {
         char decrypted[MAX_MSG_SIZE + 1];
@@ -177,7 +179,9 @@ void checkBLEReceive() {
         char* endPtr = nullptr;
         unsigned long parsedChecksum = strtoul(checksumStr, &endPtr, 10);
         if (endPtr != checksumStr) {
-          while (*endPtr != '\0' && (*endPtr == '\r' || *endPtr == '\n')) endPtr++;
+          while (*endPtr != '\0' && (*endPtr == '\r' || *endPtr == '\n')) {
+            endPtr++;
+          }
           if (*endPtr == '\0' && parsedChecksum <= 255UL) {
             uint8_t receivedChecksum = static_cast<uint8_t>(parsedChecksum);
             uint8_t calculatedChecksum = checksum(decrypted);
