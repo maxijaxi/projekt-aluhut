@@ -234,7 +234,7 @@ void notifyCallback(NimBLERemoteCharacteristic *c,
                     uint8_t *data, size_t len, bool isNotify) {
     for (size_t i = 0; i < len; i++) {
         char ch = (char)data[i];
-        Serial.write(ch); // Rohdaten direkt auf Serial (Debugging)
+        Serial.write(ch); // Empfangenes Zeichen auf Serial (Debugging)
         if (ch == '\n') {
             bleRxBuf[bleRxLen] = '\0';
             if (bleRxLen > 0 && !bleNewMsg) {

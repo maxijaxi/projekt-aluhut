@@ -38,7 +38,7 @@ U8G2_SH1106_128X64_NONAME_1_HW_I2C u8g2(U8G2_R0, U8X8_PIN_NONE);
 // ----------------------------------------------------------
 const uint8_t pinX  = A0;
 const uint8_t pinY  = A1;
-const uint8_t pinSW = 4;   // Joystick-Taster (von Pin 2 auf 4 verschoben)
+const uint8_t pinSW = 4;   // Joystick-Taster
 
 const uint8_t SS_PIN  = 10;
 const uint8_t RST_PIN = 9;
@@ -118,7 +118,7 @@ unsigned long lastNavTime = 0;
 const unsigned long navMs = 180;
 
 // ==========================================================
-// UTIL: PRÜFSUMME (XOR-Summe über Klartext)
+// UTIL: PRÜFSUMME (Summe über Klartext-Bytes)
 // ==========================================================
 byte calcChecksum(const char *s) {
     byte sum = 0;
