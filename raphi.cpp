@@ -2,8 +2,20 @@
 #include <U8g2lib.h>
 #include <Wire.h>
 #include <string.h>
+#include <stdlib.h>
 #include <SPI.h>
 #include <MFRC522.h>
+#include "util/encryption.h"
+#include "util/checkSum.h"
+
+void makeReadyForSend(char* _data, char* _output);
+void saveMessageToInbox();
+
+#if defined(HAVE_HWSERIAL1)
+#define HM10_SERIAL Serial1
+#else
+#define HM10_SERIAL Serial
+#endif
 
 // ============================================================
 // SECTION 1: DISPLAY
@@ -79,6 +91,8 @@ const char keys[3][10] = {
 const int MAX_MSG_SIZE = 64;
 char inputBuffer[MAX_MSG_SIZE + 1] = "";
 int inputLen = 0;
+const int MAX_PACKET_SIZE = MAX_MSG_SIZE + 10;
+const char PACKET_ETX = 0x03;
 
 // ============================================================
 // SECTION 9: INBOX-SPEICHER
@@ -111,8 +125,63 @@ const unsigned long navMs = 180;
 // handleInput(_input);
 // ============================================================
 void handleInput(char* _input) {
-  // Hier kannst du später die Nachricht weiterverarbeiten:
-  // z.B. per Serial senden, Funkmodul, ESP, LoRa, etc.
+  if (_input == nullptr || _input[0] == '\0') return;
+
+  char encrypted[MAX_MSG_SIZE + 1];
+  char packet[MAX_PACKET_SIZE + 1];
+
+  xorEncrypt(_input, encrypted);
+  makeReadyForSend(encrypted, packet);
+  HM10_SERIAL.print(packet);
+}
+
+void checkBLEReceive() {
+  static char recvBuf[MAX_PACKET_SIZE + 1];
+  static size_t recvLen = 0;
+
+  while (HM10_SERIAL.available()) {
+    char c = static_cast<char>(HM10_SERIAL.read());
+
+    if (recvLen < sizeof(recvBuf) - 1) {
+      recvBuf[recvLen++] = c;
+    }
+
+    if (c != '\n') continue;
+
+    recvBuf[recvLen] = '\0';
+    char* etxPtr = strchr(recvBuf, PACKET_ETX);
+    if (etxPtr != nullptr && etxPtr != recvBuf) {
+      *etxPtr = '\0';
+      char* checksumStr = etxPtr + 1;
+      while (*checksumStr == '\r' || *checksumStr == '\n' || *checksumStr == ' ') checksumStr++;
+
+      if (*checksumStr != '\0') {
+        char decrypted[MAX_MSG_SIZE + 1];
+        xorEncrypt(recvBuf, decrypted);
+
+        uint8_t receivedChecksum = static_cast<uint8_t>(strtoul(checksumStr, nullptr, 10));
+        uint8_t calculatedChecksum = checksum(decrypted);
+
+        if (decrypted[0] != '\0' && receivedChecksum == calculatedChecksum) {
+          char oldInput[MAX_MSG_SIZE + 1];
+          int oldInputLen = inputLen;
+          strncpy(oldInput, inputBuffer, MAX_MSG_SIZE);
+          oldInput[MAX_MSG_SIZE] = '\0';
+
+          strncpy(inputBuffer, decrypted, MAX_MSG_SIZE);
+          inputBuffer[MAX_MSG_SIZE] = '\0';
+          inputLen = strlen(inputBuffer);
+          saveMessageToInbox();
+
+          strncpy(inputBuffer, oldInput, MAX_MSG_SIZE);
+          inputBuffer[MAX_MSG_SIZE] = '\0';
+          inputLen = oldInputLen;
+        }
+      }
+    }
+
+    recvLen = 0;
+  }
 }
 
 // ============================================================
@@ -388,6 +457,9 @@ void drawCurrentScreen() {
 // ============================================================
 void setup() {
   Serial.begin(9600);
+#if defined(HAVE_HWSERIAL1)
+  HM10_SERIAL.begin(9600);
+#endif
   pinMode(pinSW, INPUT_PULLUP);
 
   SPI.begin();
@@ -404,6 +476,8 @@ void setup() {
 // SECTION 24: LOOP
 // ============================================================
 void loop() {
+  checkBLEReceive();
+
   // ---------------- LOCKSCREEN / RFID AUTH ----------------
   if (!isUnlocked) {
     if (authState == AUTH_IDLE) {
