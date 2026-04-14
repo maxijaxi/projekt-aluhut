@@ -188,14 +188,17 @@ extension BLEManager: CBPeripheralDelegate {
         let bytes = [UInt8](data)
         Task { @MainActor in
             receiveBuffer.append(contentsOf: bytes)
-            // Process all complete packets (terminated by newline)
-            while let nlIndex = receiveBuffer.firstIndex(of: UInt8(ascii: "\n")) {
-                let packetBytes = Array(receiveBuffer[...nlIndex])
-                receiveBuffer = Array(receiveBuffer[(nlIndex + 1)...])
+            // Split buffer on newlines in a single pass to avoid repeated O(n) scans
+            let newline = UInt8(ascii: "\n")
+            var start = 0
+            for i in 0..<receiveBuffer.count where receiveBuffer[i] == newline {
+                let packetBytes = Array(receiveBuffer[start...i])
+                start = i + 1
                 if let message = Crypto.parsePacket(packetBytes) {
                     onMessageReceived?(message)
                 }
             }
+            receiveBuffer = Array(receiveBuffer[start...])
         }
     }
 }

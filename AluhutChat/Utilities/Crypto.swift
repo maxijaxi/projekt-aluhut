@@ -36,9 +36,8 @@ enum Crypto {
     ///
     /// Resulting wire format: `{xor_encrypted_payload}\x03{decimal_checksum}\n`
     static func buildPacket(plaintext: String) -> Data? {
-        guard let plaintextBytes = plaintext.data(using: .utf8).map({ [UInt8]($0) }) else {
-            return nil
-        }
+        guard let plaintextData = plaintext.data(using: .utf8) else { return nil }
+        let plaintextBytes = [UInt8](plaintextData)
         let csum = checksum(plaintextBytes)
         let encrypted = xorTransform(plaintextBytes)
 

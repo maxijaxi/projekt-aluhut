@@ -108,11 +108,11 @@ Für den Empfang (Nachrichten von der iOS-App):
 // In loop() aufrufen:
 void checkBLEReceive() {
     static char recvBuf[MAX_PACKET_SIZE + 10];
-    static int recvLen = 0;
+    static size_t recvLen = 0;
 
     while (Serial1.available()) {
         char c = Serial1.read();
-        if (recvLen < (int)sizeof(recvBuf) - 1) {
+        if (recvLen < sizeof(recvBuf) - 1) {
             recvBuf[recvLen++] = c;
         }
         if (c == '\n') {
