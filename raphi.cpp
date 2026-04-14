@@ -138,49 +138,68 @@ void handleInput(char* _input) {
 void checkBLEReceive() {
   static char recvBuf[MAX_PACKET_SIZE + 1];
   static size_t recvLen = 0;
+  static bool overflowed = false;
 
   while (HM10_SERIAL.available()) {
     char c = static_cast<char>(HM10_SERIAL.read());
 
-    if (recvLen < sizeof(recvBuf) - 1) {
+    if (!overflowed && recvLen < sizeof(recvBuf) - 1) {
       recvBuf[recvLen++] = c;
+    } else if (!overflowed) {
+      overflowed = true;
     }
 
-    if (c != '\n') continue;
+    if (c != '\n') {
+      continue;
+    }
+
+    if (overflowed) {
+      recvLen = 0;
+      overflowed = false;
+      continue;
+    }
 
     recvBuf[recvLen] = '\0';
     char* etxPtr = strchr(recvBuf, PACKET_ETX);
     if (etxPtr != nullptr && etxPtr != recvBuf) {
       *etxPtr = '\0';
       char* checksumStr = etxPtr + 1;
-      while (*checksumStr == '\r' || *checksumStr == '\n' || *checksumStr == ' ') checksumStr++;
+      while (*checksumStr == '\r' || *checksumStr == '\n') checksumStr++;
 
       if (*checksumStr != '\0') {
         char decrypted[MAX_MSG_SIZE + 1];
         xorEncrypt(recvBuf, decrypted);
 
-        uint8_t receivedChecksum = static_cast<uint8_t>(strtoul(checksumStr, nullptr, 10));
-        uint8_t calculatedChecksum = checksum(decrypted);
+        char* endPtr = nullptr;
+        unsigned long parsedChecksum = strtoul(checksumStr, &endPtr, 10);
+        if (endPtr != checksumStr) {
+          while (*endPtr == '\r' || *endPtr == '\n') endPtr++;
+          if (*endPtr == '\0' && parsedChecksum <= 255UL) {
+            uint8_t receivedChecksum = static_cast<uint8_t>(parsedChecksum);
+            uint8_t calculatedChecksum = checksum(decrypted);
 
-        if (decrypted[0] != '\0' && receivedChecksum == calculatedChecksum) {
-          char oldInput[MAX_MSG_SIZE + 1];
-          int oldInputLen = inputLen;
-          strncpy(oldInput, inputBuffer, MAX_MSG_SIZE);
-          oldInput[MAX_MSG_SIZE] = '\0';
+            if (decrypted[0] != '\0' && receivedChecksum == calculatedChecksum) {
+              char oldInput[MAX_MSG_SIZE + 1];
+              int oldInputLen = inputLen;
+              strncpy(oldInput, inputBuffer, MAX_MSG_SIZE);
+              oldInput[MAX_MSG_SIZE] = '\0';
 
-          strncpy(inputBuffer, decrypted, MAX_MSG_SIZE);
-          inputBuffer[MAX_MSG_SIZE] = '\0';
-          inputLen = strlen(inputBuffer);
-          saveMessageToInbox();
+              strncpy(inputBuffer, decrypted, MAX_MSG_SIZE);
+              inputBuffer[MAX_MSG_SIZE] = '\0';
+              inputLen = strlen(inputBuffer);
+              saveMessageToInbox();
 
-          strncpy(inputBuffer, oldInput, MAX_MSG_SIZE);
-          inputBuffer[MAX_MSG_SIZE] = '\0';
-          inputLen = oldInputLen;
+              strncpy(inputBuffer, oldInput, MAX_MSG_SIZE);
+              inputBuffer[MAX_MSG_SIZE] = '\0';
+              inputLen = oldInputLen;
+            }
+          }
         }
       }
     }
 
     recvLen = 0;
+    overflowed = false;
   }
 }
 
