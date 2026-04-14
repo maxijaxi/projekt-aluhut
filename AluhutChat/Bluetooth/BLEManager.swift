@@ -198,7 +198,9 @@ extension BLEManager: CBPeripheralDelegate {
                     onMessageReceived?(message)
                 }
             }
-            receiveBuffer = Array(receiveBuffer[start...])
+            if start > 0, start <= receiveBuffer.count {
+                receiveBuffer.removeFirst(start)
+            }
         }
     }
 }
