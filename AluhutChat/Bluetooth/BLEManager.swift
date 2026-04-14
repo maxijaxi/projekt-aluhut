@@ -1,4 +1,5 @@
 import CoreBluetooth
+import Combine
 import Foundation
 
 // MARK: - HM-10 UUIDs

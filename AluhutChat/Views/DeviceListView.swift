@@ -24,11 +24,11 @@ struct DeviceListView: View {
                         placeholder(
                             icon: "antenna.radiowaves.left.and.right",
                             title: "Keine Geräte gefunden",
-                            message: "Tippe auf „Suchen", um nach HM-10 Bluetooth-Modulen zu suchen."
+                            message: "Tippe auf „Suchen“, um nach HM-10 Bluetooth-Modulen zu suchen."
                         )
                     }
                 } else {
-                    List(bleManager.discoveredDevices) { device in
+                    List(bleManager.discoveredDevices, id: \.id) { device in
                         Button {
                             bleManager.connect(to: device)
                         } label: {
