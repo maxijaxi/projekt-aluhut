@@ -45,7 +45,7 @@ final class BLEManager: NSObject, ObservableObject {
 
     override init() {
         super.init()
-        // Using DispatchQueue.main keeps all CoreBluetooth callbacks on the main thread.
+        // Using DispatchQueue.main keeps all CoreBluetooth callbacks on the main queue.
         central = CBCentralManager(delegate: self, queue: .main)
     }
 
