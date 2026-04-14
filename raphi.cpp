@@ -91,7 +91,7 @@ const char keys[3][10] = {
 const int MAX_MSG_SIZE = 64;
 char inputBuffer[MAX_MSG_SIZE + 1] = "";
 int inputLen = 0;
-const int MAX_PACKET_SIZE = MAX_MSG_SIZE + 10;
+const int MAX_PACKET_SIZE = MAX_MSG_SIZE + 12;
 const char PACKET_ETX = 0x03;
 
 // ============================================================
@@ -149,7 +149,7 @@ void checkBLEReceive() {
 
     if (!overflowed && recvLen < sizeof(recvBuf) - 1) {
       recvBuf[recvLen++] = c;
-    } else if (!overflowed) {
+    } else {
       overflowed = true;
     }
 
@@ -165,7 +165,7 @@ void checkBLEReceive() {
 
     recvBuf[recvLen] = '\0';
     char* etxPtr = strchr(recvBuf, PACKET_ETX);
-    if (etxPtr != nullptr && etxPtr != recvBuf) {
+    if (etxPtr != nullptr) {
       *etxPtr = '\0';
       char* checksumStr = etxPtr + 1;
       while (*checksumStr != '\0' && (*checksumStr == '\r' || *checksumStr == '\n')) {
@@ -176,13 +176,13 @@ void checkBLEReceive() {
         char decrypted[MAX_MSG_SIZE + 1];
         xorEncrypt(recvBuf, decrypted);
 
-        char* endPtr = nullptr;
-        unsigned long parsedChecksum = strtoul(checksumStr, &endPtr, 10);
-        if (endPtr != checksumStr) {
-          while (*endPtr != '\0' && (*endPtr == '\r' || *endPtr == '\n')) {
-            endPtr++;
+        char* parseEnd = nullptr;
+        unsigned long parsedChecksum = strtoul(checksumStr, &parseEnd, 10);
+        if (parseEnd != checksumStr) {
+          while (*parseEnd != '\0' && (*parseEnd == '\r' || *parseEnd == '\n')) {
+            parseEnd++;
           }
-          if (*endPtr == '\0' && parsedChecksum <= 255UL) {
+          if (*parseEnd == '\0' && parsedChecksum <= 255UL) {
             uint8_t receivedChecksum = static_cast<uint8_t>(parsedChecksum);
             uint8_t calculatedChecksum = checksum(decrypted);
 
@@ -192,6 +192,9 @@ void checkBLEReceive() {
               memcpy(oldInput, inputBuffer, MAX_MSG_SIZE + 1);
 
               size_t decryptedLen = strnlen(decrypted, MAX_MSG_SIZE);
+              if (decryptedLen > MAX_MSG_SIZE) {
+                decryptedLen = MAX_MSG_SIZE;
+              }
               memcpy(inputBuffer, decrypted, decryptedLen);
               inputBuffer[decryptedLen] = '\0';
               inputLen = static_cast<int>(decryptedLen);
