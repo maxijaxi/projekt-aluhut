@@ -1,11 +1,6 @@
 #include <Arduino.h>
 #include <string.h>
 
-// ============================================================
-// BLE-Modul (HM-10) Serielle Schnittstelle
-// Boards mit HW Serial1 (Mega, Leonardo): Serial1
-// Boards ohne (Uno, Nano): SoftwareSerial auf Pin 4 (RX) / 5 (TX)
-// ============================================================
 #if defined(HAVE_HWSERIAL1)
 #define HM10_SERIAL Serial1
 #else
