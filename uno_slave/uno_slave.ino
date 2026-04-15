@@ -87,13 +87,13 @@ const char keys[3][10] = {
 // ----------------------------------------------------------
 // PUFFER & INBOX
 // ----------------------------------------------------------
-const int MAX_MSG_SIZE    = 64;
+const int MAX_MSG_SIZE    = 16;
 const int MAX_PACKET_SIZE = MAX_MSG_SIZE * 2 + 10; // hex + ETX + CS + \n
 
 char    inputBuffer[MAX_MSG_SIZE + 1] = "";
 int     inputLen = 0;
 
-const uint8_t MAX_MESSAGES = 4;
+const uint8_t MAX_MESSAGES = 2;
 char    messages[MAX_MESSAGES][MAX_MSG_SIZE + 1];
 uint8_t messageCount   = 0;
 uint8_t inboxSelection = 0;
