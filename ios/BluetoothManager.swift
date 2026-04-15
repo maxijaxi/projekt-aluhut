@@ -183,8 +183,6 @@ extension BLEManager: CBPeripheralDelegate {
                 // Prefer acknowledged writes when available for more reliable delivery.
                 if char.properties.contains(.write) {
                     writeType = .withResponse
-                } else if char.properties.contains(.writeWithoutResponse) {
-                    writeType = .withoutResponse
                 } else {
                     writeType = .withoutResponse
                 }
