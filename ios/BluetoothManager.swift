@@ -40,6 +40,7 @@ final class BLEManager: NSObject, ObservableObject {
     private var central: CBCentralManager!
     private var connectedPeripheral: CBPeripheral?
     private var txChar: CBCharacteristic?
+    private var writeType: CBCharacteristicWriteType = .withoutResponse
 
     /// Accumulates incoming BLE chunks until a full packet (ending in '\n') is received
     private var receiveBuffer: [UInt8] = []
@@ -91,7 +92,7 @@ final class BLEManager: NSObject, ObservableObject {
             let end = min(offset + chunkSize, packet.count)
             peripheral.writeValue(packet.subdata(in: offset..<end),
                                   for: char,
-                                  type: .withoutResponse)
+                                  type: writeType)
             offset = end
         }
     }
@@ -153,6 +154,7 @@ extension BLEManager: CBCentralManagerDelegate {
             connectedDevice = nil
             connectedPeripheral = nil
             txChar = nil
+            writeType = .withoutResponse
             receiveBuffer.removeAll()
         }
     }
@@ -178,6 +180,12 @@ extension BLEManager: CBPeripheralDelegate {
             peripheral.setNotifyValue(true, for: char)
             Task { @MainActor in
                 txChar = char
+                // Prefer acknowledged writes when available for more reliable delivery.
+                if char.properties.contains(.write) {
+                    writeType = .withResponse
+                } else {
+                    writeType = .withoutResponse
+                }
             }
         }
     }
