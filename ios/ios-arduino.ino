@@ -5,8 +5,8 @@
 // ============================================================
 // Pins / Serial Settings (UNO: SoftwareSerial)
 // ============================================================
-static const uint8_t BLE_RX_PIN = 4;   // Arduino empfängt hier (an HM-10 TXD)
-static const uint8_t BLE_TX_PIN = 5;   // Arduino sendet hier (an HM-10 RXD)
+static const int BLE_RX_PIN = 4;   // Arduino empfängt hier (an HM-10 TXD)
+static const int BLE_TX_PIN = 5;   // Arduino sendet hier (an HM-10 RXD)
 static const long    BLE_BAUD   = 9600;
 
 static const long    USB_BAUD   = 9600;
@@ -54,7 +54,6 @@ static void pollBLEReceive() {
         recvBuffer[recvLen] = '\0';
 
         // HM-10 Modul-Echo/Statuszeilen ignorieren
-        // (je nach Firmware kommen z.B. "OK" oder "TX=..." zurück)
         if (strncmp(recvBuffer, "OK", 2) != 0 &&
             strncmp(recvBuffer, "TX=", 3) != 0) {
           Serial.print("[RX] ");
