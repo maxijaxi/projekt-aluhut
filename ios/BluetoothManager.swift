@@ -180,10 +180,10 @@ extension BLEManager: CBPeripheralDelegate {
             peripheral.setNotifyValue(true, for: char)
             Task { @MainActor in
                 txChar = char
-                if char.properties.contains(.writeWithoutResponse) {
-                    writeType = .withoutResponse
-                } else if char.properties.contains(.write) {
+                if char.properties.contains(.write) {
                     writeType = .withResponse
+                } else if char.properties.contains(.writeWithoutResponse) {
+                    writeType = .withoutResponse
                 }
             }
         }
