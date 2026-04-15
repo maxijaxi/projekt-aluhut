@@ -180,9 +180,12 @@ extension BLEManager: CBPeripheralDelegate {
             peripheral.setNotifyValue(true, for: char)
             Task { @MainActor in
                 txChar = char
+                // Prefer acknowledged writes when available for more reliable delivery.
                 if char.properties.contains(.write) {
                     writeType = .withResponse
                 } else if char.properties.contains(.writeWithoutResponse) {
+                    writeType = .withoutResponse
+                } else {
                     writeType = .withoutResponse
                 }
             }
