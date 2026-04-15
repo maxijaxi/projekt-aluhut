@@ -1,89 +1,115 @@
 #include <Arduino.h>
 #include <string.h>
-
-#if defined(HAVE_HWSERIAL1)
-#define HM10_SERIAL Serial1
-#else
 #include <SoftwareSerial.h>
-SoftwareSerial bleSerial(4, 5);
-#define HM10_SERIAL bleSerial
-#endif
+
+// ============================================================
+// Pins / Serial Settings (UNO: SoftwareSerial)
+// ============================================================
+static const uint8_t BLE_RX_PIN = 4;   // Arduino empfängt hier (an HM-10 TXD)
+static const uint8_t BLE_TX_PIN = 5;   // Arduino sendet hier (an HM-10 RXD)
+static const long    BLE_BAUD   = 9600;
+
+static const long    USB_BAUD   = 9600;
 
 // ============================================================
 // Konstanten & Buffer
 // ============================================================
-const int MAX_MSG_SIZE = 64;
+static const size_t MAX_MSG_SIZE = 64;
 
-char inputBuffer[MAX_MSG_SIZE + 1] = "";
-int inputLen = 0;
+// Outgoing (USB -> BLE)
+static char   inputBuffer[MAX_MSG_SIZE + 1] = {0};
+static size_t inputLen = 0;
+
+// Incoming (BLE -> USB)
+static char   recvBuffer[MAX_MSG_SIZE + 1] = {0};
+static size_t recvLen = 0;
+
+// Software serial to HM-10
+static SoftwareSerial bleSerial(BLE_RX_PIN, BLE_TX_PIN); // (RX, TX)
+
+// Einheitlicher Name, falls du später leicht auf HW-Serial umbauen willst
+#define HM10_SERIAL bleSerial
 
 // ============================================================
-// handleInput: Nachricht als Klartext via BLE senden
+// Senden: Nachricht als Klartext via BLE senden
 // ============================================================
-void handleInput(char* _input) {
-  if (_input == nullptr || _input[0] == '\0') return;
-  HM10_SERIAL.println(_input);
+static void sendLineToBLE(const char* line) {
+  if (!line || line[0] == '\0') return;
+  HM10_SERIAL.println(line);
 }
 
 // ============================================================
-// checkBLEReceive: Eingehende BLE-Nachrichten lesen
-// und im Serial Monitor ausgeben
+// Empfang: Eingehende BLE-Nachrichten lesen und auf USB ausgeben
 // ============================================================
-void checkBLEReceive() {
-  static char recvBuf[MAX_MSG_SIZE + 2];
-  static size_t recvLen = 0;
+static void pollBLEReceive() {
+  while (HM10_SERIAL.available() > 0) {
+    int b = HM10_SERIAL.read();
+    if (b < 0) break;
 
-  while (HM10_SERIAL.available()) {
-    int readByte = HM10_SERIAL.read();
-    if (readByte == -1) break;
-    char c = static_cast<char>(readByte);
+    char c = (char)b;
 
-        if (c == '\n' || c == '\r') {
+    // Zeilenende erkannt -> Buffer ausgeben
+    if (c == '\n' || c == '\r') {
       if (recvLen > 0) {
-        recvBuf[recvLen] = '\0';
-        // HM-10 Modul-Echo ignorieren
-        if (strncmp(recvBuf, "OK", 2) != 0 && strncmp(recvBuf, "TX=", 3) != 0) {
-          Serial.print("[RX] ");
-          Serial.println(recvBuf);
-        }
-        recvLen = 0;
-      }
+        recvBuffer[recvLen] = '\0';
 
+        // HM-10 Modul-Echo/Statuszeilen ignorieren
+        // (je nach Firmware kommen z.B. "OK" oder "TX=..." zurück)
+        if (strncmp(recvBuffer, "OK", 2) != 0 &&
+            strncmp(recvBuffer, "TX=", 3) != 0) {
+          Serial.print("[RX] ");
+          Serial.println(recvBuffer);
+        }
+
+        recvLen = 0; // reset für nächste Zeile
+      }
       continue;
     }
 
+    // Normales Zeichen puffern (Überlauf wird einfach abgeschnitten)
     if (recvLen < MAX_MSG_SIZE) {
-      recvBuf[recvLen++] = c;
+      recvBuffer[recvLen++] = c;
     }
   }
 }
 
 // ============================================================
-// setup
+// USB-Serial Eingabe (non-blocking) -> bei Zeilenende senden
 // ============================================================
-void setup() {
-  Serial.begin(9600);
-  HM10_SERIAL.begin(9600);
-  Serial.println("Chat bereit. Nachricht eingeben und mit Enter senden.");
-}
+static void pollUSBInputAndSend() {
+  while (Serial.available() > 0) {
+    char c = (char)Serial.read();
 
-// ============================================================
-// loop: Non-blocking Serial-Eingabe + BLE-Empfang
-// ============================================================
-void loop() {
-  checkBLEReceive();
-
-  while (Serial.available()) {
-    char c = Serial.read();
     if (c == '\n' || c == '\r') {
       if (inputLen > 0) {
         inputBuffer[inputLen] = '\0';
-        handleInput(inputBuffer);
+        sendLineToBLE(inputBuffer);
+
+        // Reset
         inputLen = 0;
         inputBuffer[0] = '\0';
       }
-    } else if (inputLen < MAX_MSG_SIZE) {
+      continue;
+    }
+
+    if (inputLen < MAX_MSG_SIZE) {
       inputBuffer[inputLen++] = c;
     }
   }
+}
+
+// ============================================================
+// setup / loop
+// ============================================================
+void setup() {
+  Serial.begin(USB_BAUD);
+  HM10_SERIAL.begin(BLE_BAUD);
+
+  Serial.println("Chat bereit (Arduino UNO + HM-10).");
+  Serial.println("Im Serial Monitor eine Zeile tippen und Enter zum Senden.");
+}
+
+void loop() {
+  pollBLEReceive();
+  pollUSBInputAndSend();
 }
