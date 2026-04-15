@@ -1,40 +1,94 @@
+#include <Arduino.h>
+#include <string.h>
+
+// ============================================================
+// BLE-Modul (HM-10) Serielle Schnittstelle
+// Boards mit HW Serial1 (Mega, Leonardo): Serial1
+// Boards ohne (Uno, Nano): SoftwareSerial auf Pin 4 (RX) / 5 (TX)
+// ============================================================
+#if defined(HAVE_HWSERIAL1)
+#define HM10_SERIAL Serial1
+#else
 #include <SoftwareSerial.h>
+SoftwareSerial bleSerial(4, 5);
+#define HM10_SERIAL bleSerial
+#endif
 
-SoftwareSerial bt(2, 3); // RX=2, TX=3
+// ============================================================
+// Konstanten & Buffer
+// ============================================================
+const int MAX_MSG_SIZE = 64;
 
-String eingehend = "";
+char inputBuffer[MAX_MSG_SIZE + 1] = "";
+int inputLen = 0;
 
-void setup() {
-  Serial.begin(9600);
-  bt.begin(9600);
-  Serial.println("=== BT Messenger bereit ===");
+// ============================================================
+// handleInput: Nachricht als Klartext via BLE senden
+// ============================================================
+void handleInput(char* _input) {
+  if (_input == nullptr || _input[0] == '\0') return;
+  HM10_SERIAL.println(_input);
 }
 
-void loop() {
-  // Empfangen vom iPhone
-  while (bt.available()) {
-    char c = (char)bt.read();
-    if (c == '\n') {
-      if (eingehend.length() > 0) {
-        Serial.print("[iPhone] ");
-        Serial.println(eingehend);
-        
-        // Antwort zurückschicken
-        bt.print("Arduino: " + eingehend + "\n");
+// ============================================================
+// checkBLEReceive: Eingehende BLE-Nachrichten lesen
+// und im Serial Monitor ausgeben
+// ============================================================
+void checkBLEReceive() {
+  static char recvBuf[MAX_MSG_SIZE + 2];
+  static size_t recvLen = 0;
+
+  while (HM10_SERIAL.available()) {
+    int readByte = HM10_SERIAL.read();
+    if (readByte == -1) break;
+    char c = static_cast<char>(readByte);
+
+        if (c == '\n' || c == '\r') {
+      if (recvLen > 0) {
+        recvBuf[recvLen] = '\0';
+        // HM-10 Modul-Echo ignorieren
+        if (strncmp(recvBuf, "OK", 2) != 0 && strncmp(recvBuf, "TX=", 3) != 0) {
+          Serial.print("[RX] ");
+          Serial.println(recvBuf);
+        }
+        recvLen = 0;
       }
-      eingehend = "";
-    } else if (c != '\r') {
-      eingehend += c;
+
+      continue;
+    }
+
+    if (recvLen < MAX_MSG_SIZE) {
+      recvBuf[recvLen++] = c;
     }
   }
+}
 
-  // Senden vom Serial Monitor ans iPhone
+// ============================================================
+// setup
+// ============================================================
+void setup() {
+  Serial.begin(9600);
+  HM10_SERIAL.begin(9600);
+  Serial.println("Chat bereit. Nachricht eingeben und mit Enter senden.");
+}
+
+// ============================================================
+// loop: Non-blocking Serial-Eingabe + BLE-Empfang
+// ============================================================
+void loop() {
+  checkBLEReceive();
+
   while (Serial.available()) {
-    char c = (char)Serial.read();
-    if (c == '\n') {
-      // wird über BT gesendet
-    } else {
-      bt.write(c);
+    char c = Serial.read();
+    if (c == '\n' || c == '\r') {
+      if (inputLen > 0) {
+        inputBuffer[inputLen] = '\0';
+        handleInput(inputBuffer);
+        inputLen = 0;
+        inputBuffer[0] = '\0';
+      }
+    } else if (inputLen < MAX_MSG_SIZE) {
+      inputBuffer[inputLen++] = c;
     }
   }
 }
