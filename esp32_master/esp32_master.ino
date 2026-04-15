@@ -40,8 +40,8 @@ U8G2_SH1106_128X64_NONAME_1_HW_I2C u8g2(U8G2_R0, U8X8_PIN_NONE);
 // ----------------------------------------------------------
 // PINS  (ESP32  – 12-bit ADC, Schwellwerte ≈ 30 % / 70 %)
 // ----------------------------------------------------------
-const uint8_t pinX  = 36;  // ADC1_CH0  (nur Eingang, kein Pull-up möglich)
-const uint8_t pinY  = 39;  // ADC1_CH3  (nur Eingang, kein Pull-up möglich)
+const uint8_t pinX  = 32;  // ADC1_CH0  (nur Eingang, kein Pull-up möglich)
+const uint8_t pinY  = 33;  // ADC1_CH3  (nur Eingang, kein Pull-up möglich)
 const uint8_t pinSW = 15;  // Joystick-Taster
 
 const uint8_t SS_PIN  = 5;
@@ -95,13 +95,13 @@ const char keys[3][10] = {
 // ----------------------------------------------------------
 // PUFFER & INBOX
 // ----------------------------------------------------------
-const int MAX_MSG_SIZE    = 64;
+const int MAX_MSG_SIZE    = 16;
 const int MAX_PACKET_SIZE = MAX_MSG_SIZE * 2 + 10; // hex + ETX + CS + \n
 
 char    inputBuffer[MAX_MSG_SIZE + 1] = "";
 int     inputLen = 0;
 
-const uint8_t MAX_MESSAGES = 4;
+const uint8_t MAX_MESSAGES = 2;
 char    messages[MAX_MESSAGES][MAX_MSG_SIZE + 1];
 uint8_t messageCount   = 0;
 uint8_t inboxSelection = 0;
